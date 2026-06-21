@@ -1,0 +1,100 @@
+# sml-uri
+
+[![CI](https://github.com/sjqtentacles/sml-uri/actions/workflows/ci.yml/badge.svg)](https://github.com/sjqtentacles/sml-uri/actions/workflows/ci.yml)
+
+RFC 3986 URIs and `application/x-www-form-urlencoded` queries for Standard ML:
+percent codec, generic URI parse/serialize, reference resolution, and query
+key/value handling.
+
+Pure Standard ML over the Basis library -- no dependencies. The URI parser is
+a direct, total implementation of the RFC 3986 Appendix B decomposition and
+the section 5.2 reference-resolution algorithm (no parser-combinator
+dependency), so the whole library is self-contained and deterministic.
+Verified on **MLton** and **Poly/ML** against the RFC 3986 section 5.4
+resolution examples.
+
+## Modules
+
+| Structure | Spec | Purpose |
+| --- | --- | --- |
+| `Percent` | RFC 3986 section 2 | `encode`/`decode`, form `+`-encoding |
+| `Query`   | WHATWG urlencoded | parse/build/get/getAll over ordered pairs |
+| `Uri`     | RFC 3986 | parse, toString, resolve, queryParams |
+
+## API
+
+```sml
+structure Percent : sig
+  val encode : string -> string        val decode : string -> string
+  val encodeForm : string -> string    val decodeForm : string -> string
+end
+
+structure Query : sig
+  type query = (string * string) list
+  val parse : string -> query          val build : query -> string
+  val get : query -> string -> string option
+  val getAll : query -> string -> string list
+end
+
+structure Uri : sig
+  type uri =
+    { scheme : string option, authority : string option, path : string
+    , query : string option, fragment : string option }
+  val parse : string -> uri            val toString : uri -> string
+  val resolve : uri -> uri -> uri      val resolveStr : string -> string -> string
+  val queryParams : uri -> (string * string) list
+end
+```
+
+URI components are stored *raw* (still percent-encoded), so `toString o parse`
+is the exact identity; decode individual pieces with `Percent.decode`.
+
+### Example
+
+```sml
+val u = Uri.parse "http://example.com/path?a=1&b=2#frag"
+val () = print (#path u ^ "\n")                       (* /path *)
+val q = Uri.queryParams u                              (* [("a","1"),("b","2")] *)
+val abs = Uri.resolveStr "http://a/b/c/d;p?q" "../g"   (* http://a/b/g *)
+```
+
+## CLI
+
+```sh
+make cli
+./bin/uri parse   "http://h/a?b=c#d"
+./bin/uri resolve "http://a/b/c/d;p?q" "../g"
+./bin/uri encode  "hello world/&"
+./bin/uri decode  "%2F"
+```
+
+## Build & test
+
+```sh
+make test        # MLton
+make test-poly   # Poly/ML
+make all-tests   # both
+make cli         # build ./bin/uri
+make clean
+```
+
+## Installing with smlpkg
+
+```sh
+smlpkg add github.com/sjqtentacles/sml-uri
+smlpkg sync
+```
+
+Reference `lib/github.com/sjqtentacles/sml-uri/sml-uri.mlb` from your own
+`.mlb`, or feed `sources.mlb` to `tools/polybuild` (Poly/ML).
+
+## Tests
+
+44 deterministic checks: percent codec edge cases, form `+`-encoding, query
+parse/build/get, URI round-trips (full, mailto, relative, query-only,
+fragment-only, empty-path scheme), component extraction, and the full set of
+RFC 3986 section 5.4 reference-resolution examples. Run `make all-tests`.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
