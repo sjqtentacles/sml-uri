@@ -35,4 +35,5 @@ $(BIN):
 	mkdir -p $(BIN)
 
 clean:
-	rm -rf $(BIN)
+	rm -f $(BIN)/test-mlton $(BIN)/test-poly $(BIN)/uri
+	rm -f *.o
