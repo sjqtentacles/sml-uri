@@ -104,7 +104,35 @@ make test        # MLton
 make test-poly   # Poly/ML
 make all-tests   # both
 make cli         # build ./bin/uri
+make example     # build + run the demo
 make clean
+```
+
+## Demo
+
+[`examples/demo.sml`](examples/demo.sml) parses a fixed URI into its components,
+round-trips and normalizes it, resolves a relative reference, and runs the
+percent codec. It is pure string processing, so the output is identical on every
+run and on both compilers. Run it with:
+
+```
+$ make example
+parse https://User@Example.COM:443/a/./b/../c?x=1&y=2#frag
+  scheme    = "https"
+  authority = "User@Example.COM:443"
+  path      = "/a/./b/../c"
+  query     = "x=1&y=2"
+  fragment  = "frag"
+  toString roundtrip = https://User@Example.COM:443/a/./b/../c?x=1&y=2#frag
+  normalized         = https://User@example.com/a/c?x=1&y=2#frag
+
+queryParams: x=1, y=2
+
+resolve "http://a/b/c/d;p?q" "../../g" = http://a/g
+removeDotSegments "/a/b/c/./../../g" = /a/g
+
+Percent.encode "a b/c?" = a%20b%2Fc%3F
+Percent.decode "a%20b%2Fc" = a b/c
 ```
 
 ## Installing with smlpkg
