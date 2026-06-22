@@ -65,6 +65,46 @@ struct
       val () = checkString "." ("http://a/b/c/", res ".")
       val () = checkString "absolute ref" ("https://x/y", res "https://x/y")
       val () = checkString "empty -> base" ("http://a/b/c/d;p?q", res "")
+
+      val () = section "percent normalization (RFC 3986 6.2.2)"
+      val () = checkString "decode unreserved %7e -> ~" ("~", Percent.normalize "%7e")
+      val () = checkString "uppercase reserved %2f -> %2F" ("%2F", Percent.normalize "%2f")
+      val () = checkString "mixed" ("a~b%2F", Percent.normalize "a%7eb%2f")
+      val () = checkString "lone percent left literal" ("%", Percent.normalize "%")
+
+      val () = section "remove_dot_segments"
+      (* RFC 3986 5.2.4's own worked example. *)
+      val () = checkString "canonical" ("/a/g", Uri.removeDotSegments "/a/b/c/./../../g")
+      val () = checkString "one-up" ("/a/b/g", Uri.removeDotSegments "/a/b/c/./../g")
+      val () = checkString "trailing dot" ("/a/b/", Uri.removeDotSegments "/a/b/c/..")
+
+      val () = section "syntax-based normalization (RFC 3986 section 6)"
+      fun norm s = Uri.toString (Uri.normalize (Uri.parse s))
+      val () = checkString "scheme+host+port+path"
+                 ("http://example.com/a/c", norm "HTTP://Example.COM:80/a/./b/../c")
+      val () = checkString "keeps non-default port"
+                 ("http://example.com:8080/", norm "HTTP://Example.COM:8080/")
+      val () = checkString "https default port dropped"
+                 ("https://example.com/", norm "HTTPS://Example.COM:443/")
+      val () = checkString "percent in path decoded"
+                 ("http://h/~x", norm "http://h/%7ex")
+
+      val () = section "component setters"
+      val u2 = Uri.parse "http://h/p?q=1#frag"
+      val () = checkString "withoutFragment drops #frag" ("http://h/p?q=1", Uri.toString (Uri.withoutFragment u2))
+      val () = checkString "withoutQuery drops ?q" ("http://h/p#frag", Uri.toString (Uri.withoutQuery u2))
+      val () = checkString "withPath" ("http://h/new?q=1#frag", Uri.toString (Uri.withPath u2 "/new"))
+      val () = checkString "withQuery" ("http://h/p?z=9#frag", Uri.toString (Uri.withQuery u2 "z=9"))
+      val () = checkString "withFragment" ("http://h/p?q=1#top", Uri.toString (Uri.withFragment u2 "top"))
+
+      val () = section "relativize (inverse of resolve)"
+      val rb = Uri.parse "http://a/b/"
+      val rt = Uri.parse "http://a/b/c/d"
+      val () = checkString "relative path" ("c/d", Uri.toString (Uri.relativize rb rt))
+      val () = checkBool "round-trips through resolve"
+                 (true, Uri.toString (Uri.resolve rb (Uri.relativize rb rt)) = Uri.toString rt)
+      val () = checkBool "different authority -> target unchanged"
+                 (true, Uri.relativize rb (Uri.parse "http://z/x") = Uri.parse "http://z/x")
     in
       ()
     end

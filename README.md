@@ -42,6 +42,11 @@ structure Uri : sig
     , query : string option, fragment : string option }
   val parse : string -> uri            val toString : uri -> string
   val resolve : uri -> uri -> uri      val resolveStr : string -> string -> string
+  val removeDotSegments : string -> string
+  val normalize : uri -> uri           val relativize : uri -> uri -> uri
+  val withPath : uri -> string -> uri  val withQuery : uri -> string -> uri
+  val withFragment : uri -> string -> uri
+  val withoutQuery : uri -> uri        val withoutFragment : uri -> uri
   val queryParams : uri -> (string * string) list
 end
 ```
@@ -56,6 +61,30 @@ val u = Uri.parse "http://example.com/path?a=1&b=2#frag"
 val () = print (#path u ^ "\n")                       (* /path *)
 val q = Uri.queryParams u                              (* [("a","1"),("b","2")] *)
 val abs = Uri.resolveStr "http://a/b/c/d;p?q" "../g"   (* http://a/b/g *)
+```
+
+### Normalization, relativization & setters
+
+`Uri.normalize` applies RFC 3986 section 6 *syntax-based normalization*:
+lowercases the scheme and host, drops the default port for the scheme (http
+80, https 443, ftp 21, ws 80, wss 443), normalizes percent-encoding (uppercase
+hex digits, decode unreserved bytes), and runs `removeDotSegments` on the path.
+`Percent.normalize` exposes the percent-encoding part on its own.
+
+`relativize base target` is the inverse of `resolve`: when both share a scheme
+and authority and base's path is a prefix of target's, it yields a relative
+reference such that `resolve base (relativize base target) = target` (otherwise
+the target is returned unchanged). The `with*` helpers return a copy with one
+component replaced or dropped.
+
+```sml
+Uri.toString (Uri.normalize (Uri.parse "HTTP://Example.COM:80/a/./b/../c"))
+  (* "http://example.com/a/c" *)
+Uri.removeDotSegments "/a/b/c/./../../g"            (* "/a/g" *)
+Percent.normalize "%7e"                              (* "~" *)
+Uri.toString (Uri.withoutFragment (Uri.parse "http://h/p#frag"))  (* "http://h/p" *)
+val rel = Uri.relativize (Uri.parse "http://a/b/") (Uri.parse "http://a/b/c/d")
+  (* Uri.toString rel = "c/d" *)
 ```
 
 ## CLI
