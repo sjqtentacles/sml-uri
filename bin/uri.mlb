@@ -1,5 +1,0 @@
-$(SML_LIB)/basis/basis.mlb
-
-../lib/github.com/sjqtentacles/sml-uri/sources.mlb
-
-uri.sml

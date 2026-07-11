@@ -6,7 +6,7 @@ TEST_MLB   := test/sources.mlb
 CLI_MLB    := bin/uri.mlb
 SRCS       := $(wildcard $(LIBDIR)/*.sml $(LIBDIR)/*.sig) $(wildcard test/*.sml) $(TEST_MLB) $(LIBDIR)/sources.mlb
 
-.PHONY: all test poly test-poly verify-identical all-tests cli example clean
+.PHONY: all test poly test-poly verify-identical all-tests cli example clean example-poly
 
 all: $(BIN)/test-mlton
 
@@ -25,6 +25,10 @@ test-poly: $(BIN)/test-poly
 	$(BIN)/test-poly
 
 all-tests: test test-poly verify-identical
+
+# Demos are top-level scripts; run them under Poly/ML via use-loading.
+example-poly:
+	sh tools/polybuild -r examples/sources.mlb
 
 example: $(BIN)/demo
 	./$(BIN)/demo
