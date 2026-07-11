@@ -2,6 +2,7 @@
 /bin/test-mlton
 /bin/test-poly
 /bin/uri
+/bin/demo
 
 # Poly/ML export artifacts
 *.o
@@ -13,3 +14,10 @@
 # Editor / OS noise
 .DS_Store
 *~
+
+# byte-identity / example scratch outputs
+/bin/out-mlton.txt
+/bin/out-poly.txt
+/bin/demo-out-mlton.txt
+/bin/demo-out-poly.txt
+/bin/test-time.txt
