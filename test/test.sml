@@ -105,6 +105,85 @@ struct
                  (true, Uri.toString (Uri.resolve rb (Uri.relativize rb rt)) = Uri.toString rt)
       val () = checkBool "different authority -> target unchanged"
                  (true, Uri.relativize rb (Uri.parse "http://z/x") = Uri.parse "http://z/x")
+
+      val () = section "sml-check properties"
+
+      (* Arbitrary-byte generator: percent-encoding operates on raw bytes,
+         not text, so we exercise the full 0..255 range. *)
+      val genByte = Check.charRange (Char.chr 0, Char.chr 255)
+      val genBytesStr = Check.stringOf genByte
+
+      (* prop: Percent.decode (Percent.encode s) = s for arbitrary bytes. *)
+      val () =
+        Harness.check "prop: Percent.decode (Percent.encode s) = s"
+          (case Check.quickCheck
+                  (Check.forAll genBytesStr (fn s => s)
+                     (fn s => Percent.decode (Percent.encode s) = s)) of
+               Check.Passed _ => true
+             | Check.Failed _ => false)
+
+      (* prop: Percent.decodeForm (Percent.encodeForm s) = s for arbitrary
+         bytes (space <-> '+' handling doesn't disturb the round trip). *)
+      val () =
+        Harness.check "prop: Percent.decodeForm (Percent.encodeForm s) = s"
+          (case Check.quickCheck
+                  (Check.forAll genBytesStr (fn s => s)
+                     (fn s => Percent.decodeForm (Percent.encodeForm s) = s)) of
+               Check.Passed _ => true
+             | Check.Failed _ => false)
+
+      (* prop: Query.parse (Query.build pairs) = pairs for generated
+         key/value pairs drawn from the full non-NUL byte range (form
+         encoding must escape anything that would otherwise be ambiguous,
+         e.g. '&', '=', '+', '%'). *)
+      val genQueryByte = Check.charRange (Char.chr 1, Char.chr 255)
+      val genQueryStr = Check.stringOf genQueryByte
+      val genQueryPairs = Check.listOf (Check.tuple2 (genQueryStr, genQueryStr))
+      fun showPairs ps =
+        "[" ^ String.concatWith "," (List.map (fn (k, v) => k ^ "=" ^ v) ps) ^ "]"
+      val () =
+        Harness.check "prop: Query.parse (Query.build pairs) = pairs"
+          (case Check.quickCheck
+                  (Check.forAll genQueryPairs showPairs
+                     (fn ps => Query.parse (Query.build ps) = ps)) of
+               Check.Passed _ => true
+             | Check.Failed _ => false)
+
+      (* prop: for a generated well-formed URI string (safe alnum
+         scheme/authority/path/query/fragment, needing no percent-encoding),
+         toString o parse is the identity -- generalizing the fixed
+         "roundtrips" vectors above to random shapes. *)
+      val genAlnumChar = Check.oneof [Check.charRange (#"a", #"z"), Check.charRange (#"0", #"9")]
+      val genAlnum = Check.nonEmptyListOf genAlnumChar
+      fun implodeGen g = Check.map String.implode g
+      val genScheme = implodeGen (Check.nonEmptyListOf (Check.charRange (#"a", #"z")))
+      val genAuthority = implodeGen genAlnum
+      val genSeg = implodeGen genAlnum
+      val genPath = Check.map (fn segs => "/" ^ String.concatWith "/" segs) (Check.listOf genSeg)
+      val genQueryOpt =
+        Check.option
+          (Check.map
+             (fn kvs => String.concatWith "&" (List.map (fn (k, v) => k ^ "=" ^ v) kvs))
+             (Check.listOf (Check.tuple2 (genSeg, genSeg))))
+      val genFragOpt = Check.option genSeg
+      val genUriStr =
+        Check.bind genScheme (fn sch =>
+        Check.bind genAuthority (fn auth =>
+        Check.bind genPath (fn path =>
+        Check.bind genQueryOpt (fn q =>
+        Check.map
+          (fn f =>
+             sch ^ "://" ^ auth ^ path
+             ^ (case q of NONE => "" | SOME qs => "?" ^ qs)
+             ^ (case f of NONE => "" | SOME fs => "#" ^ fs))
+          genFragOpt))))
+      val () =
+        Harness.check "prop: Uri.toString (Uri.parse s) = s for safe URI strings"
+          (case Check.quickCheck
+                  (Check.forAll genUriStr (fn s => s)
+                     (fn s => Uri.toString (Uri.parse s) = s)) of
+               Check.Passed _ => true
+             | Check.Failed _ => false)
     in
       ()
     end
